@@ -1,0 +1,17 @@
+# Tracked: plugin/, docs/, README.md (kept empty; project notes live in notes/, which is local only)
+/*
+!/.gitignore
+!/README.md
+!/plugin/
+!/docs/
+
+# build output
+bin/
+*.obj
+*.exp
+*.lib
+*.exe
+*.pdb
+
+# local scripts
+*.bat

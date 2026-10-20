@@ -1,0 +1,318 @@
+<title>HXIDB Data Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: five diagrams that explain the mechanism, then one row per variable. */
+:root{
+  --bg:#F1F4F7; --surface:#FFFFFF; --ink:#13202C; --mute:#586878; --line:#C3CDD7; --soft:#E8EDF2;
+  --plugin:#2552D4; --server:#0B7A78; --server-soft:#DCF1F0; --wiki:#B25F00; --wiki-soft:#FBEBD3;
+  --sans:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1319; --surface:#151D25; --ink:#E5EBF0; --mute:#8DA0B0; --line:#34414D; --soft:#1C2630;
+  --plugin:#7AA0FF; --server:#3CCBC8; --server-soft:#12302F; --wiki:#F2A93C; --wiki-soft:#35260F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1319; --surface:#151D25; --ink:#E5EBF0; --mute:#8DA0B0; --line:#34414D; --soft:#1C2630;
+  --plugin:#7AA0FF; --server:#3CCBC8; --server-soft:#12302F; --wiki:#F2A93C; --wiki-soft:#35260F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;
+  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px}
+.wrap{max-width:1100px;margin:0 auto}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.02em}
+.lede{color:var(--mute);max-width:62ch;margin-top:8px}
+h2{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:52px 0 14px}
+figure{margin:0 0 22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px}
+figure .scroll{overflow-x:auto}
+svg{display:block;width:100%;height:auto;min-width:760px;color:var(--mute)}
+figcaption{color:var(--mute);font-size:13.5px;max-width:80ch;margin-top:8px}
+svg text{fill:var(--ink);font-family:var(--sans);font-size:12px}
+svg .tt{font-weight:600;font-size:13px}
+svg .mono{font-family:var(--mono);font-weight:500;font-size:12.5px}
+svg .sb{fill:var(--mute);font-size:11px}
+svg .lb{fill:var(--mute);font-size:11px}
+svg .zn{font-family:var(--mono);font-size:10px;letter-spacing:.12em}
+svg .zn.p{fill:var(--plugin)}svg .zn.s{fill:var(--server)}svg .zn.w{fill:var(--wiki)}
+svg .nd{fill:var(--surface);stroke:var(--line);stroke-width:1.3}
+svg .nd.p{stroke:var(--plugin)}svg .nd.s{stroke:var(--server)}svg .nd.w{stroke:var(--wiki);fill:var(--wiki-soft)}
+svg .ln{fill:none;stroke:var(--mute);stroke-width:1.5;stroke-linejoin:round}
+svg .ln.dash{stroke-dasharray:5 4}
+.pks{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:12px}
+.pk{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.pkh{display:flex;gap:10px;align-items:baseline;margin-bottom:8px}
+.pkh b{font-family:var(--mono);font-weight:500;font-size:15px;color:var(--plugin)}
+.pkh span{font-weight:600}
+.pk dl{margin:0;display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px}
+.pk dt{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-top:2px}
+.pk dd{margin:0;font-size:13.5px}
+h3.sub{font-size:16px;font-weight:600;margin:26px 0 10px}
+.note{color:var(--mute);font-size:13.5px;max-width:80ch;margin-top:10px}
+.grp{margin-top:30px}
+.grp>h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.row{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.5fr);gap:6px 28px;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:8px}
+.name b{font-family:var(--mono);font-weight:500;font-size:14px;overflow-wrap:anywhere}
+.name span{display:block;font-family:var(--mono);font-size:12px;color:var(--mute)}
+.row h4{margin:0 0 1px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.row p{font-size:13.5px}
+.row p+h4{margin-top:8px}
+.pill{display:inline-block;font-family:var(--mono);font-size:11.5px;padding:2px 8px;border-radius:99px;margin:3px 4px 0 0;background:var(--server-soft)}
+.pill.w{background:var(--wiki-soft);font-family:var(--sans);font-size:12px}
+.pill.n{background:var(--soft);color:var(--mute);font-family:var(--sans);font-size:12px}
+.wiki{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.wiki div{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--wiki);border-radius:8px;padding:10px 14px}
+.wiki div.x{border-left-color:var(--mute);border-style:dashed;border-left-style:solid}
+.wiki b{display:block;font-size:14px}.wiki span{color:var(--mute);font-size:13px}
+@media (max-width:820px){.row{grid-template-columns:1fr}.pks{grid-template-columns:1fr}.pk dl{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <h1>HXIDB data flow</h1>
+  <p class="lede">What the plugin sends, what the server keeps of it, and where it shows up on the wiki. The diagrams explain the mechanism; the list at the bottom covers every variable.</p>
+
+  <h2>From game to server</h2>
+<figure><div class="scroll"><svg viewBox="0 0 1040 424" role="img" aria-label="Summary: six incoming game packets and three memory reads feed the plugin, which filters, assembles, evaluates, scrubs and signs, then sends to the server"><defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><text class="zn p" x="10" y="14" text-anchor="start">GAME PACKETS, INCOMING ONLY</text><rect class="nd p" x="10" y="24" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="45">0x00A</text><text class="sb" x="86" y="45">zone change</text><path class="ln" d="M240,40 L300,40 L300,216"/><rect class="nd p" x="10" y="64" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="85">0x00E</text><text class="sb" x="86" y="85">entity update</text><path class="ln" d="M240,80 L300,80 L300,216"/><rect class="nd p" x="10" y="104" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="125">0x028</text><text class="sb" x="86" y="125">action</text><path class="ln" d="M240,120 L300,120 L300,216"/><rect class="nd p" x="10" y="144" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="165">0x029</text><text class="sb" x="86" y="165">battle message</text><path class="ln" d="M240,160 L300,160 L300,216"/><rect class="nd p" x="10" y="184" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="205">0x0D2</text><text class="sb" x="86" y="205">treasure pool</text><path class="ln" d="M240,200 L300,200 L300,216"/><rect class="nd p" x="10" y="224" width="230" height="32" rx="6"/><text class="tt mono" x="22" y="245">0x034</text><text class="sb" x="86" y="245">chest</text><path class="ln" d="M240,240 L300,240 L300,216"/><text class="zn p" x="10" y="284" text-anchor="start">MEMORY READS</text><rect class="nd p" x="10" y="294" width="230" height="30" rx="6" stroke-dasharray="5 3"/><text class="tt" x="22" y="314">party roster</text><text class="sb" x="130" y="314">jobs, zones</text><path class="ln" d="M240,309 L300,309 L300,216"/><rect class="nd p" x="10" y="332" width="230" height="30" rx="6" stroke-dasharray="5 3"/><text class="tt" x="22" y="352">entity table</text><text class="sb" x="130" y="352">flags, distances</text><path class="ln" d="M240,347 L300,347 L300,216"/><rect class="nd p" x="10" y="370" width="230" height="30" rx="6" stroke-dasharray="5 3"/><text class="tt" x="22" y="390">equipment</text><text class="sb" x="130" y="390">worn item ids</text><path class="ln" d="M240,385 L300,385 L300,216"/><path class="ln" d="M300,216 L340,216" marker-end="url(#a6)"/><rect class="nd p" x="340" y="24" width="360" height="384" rx="12"/><text class="tt" x="360" y="50">Plugin, on the player's PC</text><rect class="nd p" x="362" y="66" width="316" height="66" rx="8"/><text class="tt" x="520.0" y="95.5" text-anchor="middle">Filter</text><text class="sb" x="520.0" y="111.5" text-anchor="middle">six packet ids, nothing blocked or changed</text><rect class="nd p" x="362" y="150" width="316" height="66" rx="8"/><text class="tt" x="520.0" y="179.5" text-anchor="middle">Assemble</text><text class="sb" x="520.0" y="195.5" text-anchor="middle">a kill or chest is built in memory, per zone</text><path class="ln" d="M520,132 L520,150" marker-end="url(#a6)"/><rect class="nd p" x="362" y="234" width="316" height="66" rx="8"/><text class="tt" x="520.0" y="263.5" text-anchor="middle">Evaluate</text><text class="sb" x="520.0" y="279.5" text-anchor="middle">Thief level, own TH, party tags, gil counts</text><path class="ln" d="M520,216 L520,234" marker-end="url(#a6)"/><rect class="nd p" x="362" y="318" width="316" height="66" rx="8"/><text class="tt" x="520.0" y="347.5" text-anchor="middle">Scrub, sign, send</text><text class="sb" x="520.0" y="363.5" text-anchor="middle">no names or IDs; Ed25519; batched</text><path class="ln" d="M520,300 L520,318" marker-end="url(#a6)"/><path class="ln" d="M700,216 L790,216" marker-end="url(#a6)"/><text class="lb" x="745" y="206" text-anchor="middle">HTTPS</text><rect class="nd s" x="790" y="146" width="240" height="140" rx="8"/><text class="tt" x="910.0" y="197.5" text-anchor="middle">Server</text><text class="sb" x="910.0" y="213.5" text-anchor="middle">checks the signature</text><text class="sb" x="910.0" y="228.5" text-anchor="middle">merges reports into kills</text><text class="sb" x="910.0" y="243.5" text-anchor="middle">keeps counts, no names</text><text class="sb" x="910" y="308" text-anchor="middle">the wiki then reads views</text></svg></div><figcaption>The whole system in one picture. Six incoming packet types and three memory reads go in; one signed, scrubbed batch comes out. The plugin never sends anything it read as a name or a character ID.</figcaption></figure>
+  <h2>The path of a report</h2>
+<figure><div class="scroll"><svg viewBox="0 0 1040 340" role="img" aria-label="Path of one report from the game client through the plugin, the server and the views to the wiki"><defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><rect class="nd p" x="190" y="8" width="232" height="50" rx="8"/><text class="tt mono" x="306.0" y="29.5" text-anchor="middle">/v1/oprf</text><text class="sb" x="306.0" y="45.5" text-anchor="middle">blinded value in, keyed value out</text><path class="ln" d="M306,58 L306,96" marker-end="url(#a1)"/><text class="lb" x="316" y="82" text-anchor="start">identity and party tags</text><rect class="nd p" x="9" y="96" width="166" height="70" rx="8"/><text class="tt" x="92.0" y="127.5" text-anchor="middle">Game client</text><text class="sb" x="92.0" y="143.5" text-anchor="middle">packets and memory reads</text><rect class="nd p" x="223" y="96" width="166" height="70" rx="8"/><text class="tt" x="306.0" y="120.0" text-anchor="middle">Plugin</text><text class="sb" x="306.0" y="136.0" text-anchor="middle">removes names and IDs</text><text class="sb" x="306.0" y="151.0" text-anchor="middle">builds the SourceEvent</text><rect class="nd p" x="437" y="96" width="166" height="70" rx="8"/><text class="tt" x="520.0" y="120.0" text-anchor="middle">Sign and send</text><text class="sb" x="520.0" y="136.0" text-anchor="middle">Ed25519 over the payload</text><text class="sb" x="520.0" y="151.0" text-anchor="middle">batched, retried</text><rect class="nd s" x="651" y="96" width="166" height="70" rx="8"/><text class="tt" x="734.0" y="120.0" text-anchor="middle">Gates</text><text class="sb" x="734.0" y="136.0" text-anchor="middle">signature, enrolled</text><text class="sb" x="734.0" y="151.0" text-anchor="middle">nonce, rate caps</text><rect class="nd s" x="865" y="96" width="166" height="70" rx="8"/><text class="tt" x="948.0" y="120.0" text-anchor="middle">Validate</text><text class="sb" x="948.0" y="136.0" text-anchor="middle">event plausibility</text><text class="sb" x="948.0" y="151.0" text-anchor="middle">own TH claim capped</text><rect class="nd s" x="9" y="250" width="166" height="70" rx="8"/><text class="tt" x="92.0" y="274.0" text-anchor="middle">Find the kill</text><text class="sb" x="92.0" y="290.0" text-anchor="middle">zone, source, then</text><text class="sb" x="92.0" y="305.0" text-anchor="middle">kill tick or server time</text><rect class="nd s" x="223" y="250" width="166" height="70" rx="8"/><text class="tt" x="306.0" y="274.0" text-anchor="middle">Merge</text><text class="sb" x="306.0" y="290.0" text-anchor="middle">one row per kill,</text><text class="sb" x="306.0" y="305.0" text-anchor="middle">one report per reporter</text><rect class="nd s" x="437" y="250" width="166" height="70" rx="8"/><text class="tt" x="520.0" y="274.0" text-anchor="middle">Recompute</text><text class="sb" x="520.0" y="290.0" text-anchor="middle">who counts, which drops,</text><text class="sb" x="520.0" y="305.0" text-anchor="middle">which TH tier</text><rect class="nd s" x="651" y="250" width="166" height="70" rx="8"/><text class="tt" x="734.0" y="281.5" text-anchor="middle">Views</text><text class="sb" x="734.0" y="297.5" text-anchor="middle">v_stat_*, counts only</text><rect class="nd w" x="865" y="250" width="166" height="70" rx="8"/><text class="tt" x="948.0" y="274.0" text-anchor="middle">Wiki</text><text class="sb" x="948.0" y="290.0" text-anchor="middle">tables with raw counts</text><text class="sb" x="948.0" y="305.0" text-anchor="middle">and percentages</text><path class="ln" d="M175,131 L223,131" marker-end="url(#a1)"/><path class="ln" d="M175,285 L223,285" marker-end="url(#a1)"/><path class="ln" d="M389,131 L437,131" marker-end="url(#a1)"/><path class="ln" d="M389,285 L437,285" marker-end="url(#a1)"/><path class="ln" d="M603,131 L651,131" marker-end="url(#a1)"/><path class="ln" d="M603,285 L651,285" marker-end="url(#a1)"/><path class="ln" d="M817,131 L865,131" marker-end="url(#a1)"/><path class="ln" d="M817,285 L865,285" marker-end="url(#a1)"/><text class="lb" x="627.0" y="124" text-anchor="middle">POST</text><text class="lb" x="841.0" y="124" text-anchor="middle">ok</text><text class="lb" x="841.0" y="278" text-anchor="middle">reads</text><path class="ln" d="M948,166 L948,208 L92,208 L92,250" marker-end="url(#a1)"/><text class="lb" x="520" y="202" text-anchor="middle">each event in the batch, one at a time</text><text class="zn p" x="9" y="90" text-anchor="start">PLUGIN</text><text class="zn s" x="651" y="90" text-anchor="start">SERVER</text><text class="zn w" x="865" y="244" text-anchor="start">WIKI</text></svg></div><figcaption>The path of one report. The plugin scrubs and signs; the server checks the batch, then handles each event in turn; the wiki only ever reads the aggregate views.</figcaption></figure>
+  <p class="note"><b>Never sent:</b> player names, character IDs or any hash of one, raw party member IDs, player positions (only a chest's own position), or anything written to the player's disk except the status box position. Identity and party tags come from an oblivious PRF, so the server never sees what they were made from.</p>
+
+  <h2>What the plugin reads</h2>
+  <p class="note" style="margin:0 0 14px">The plugin handles incoming packets only, and only these six ids with a size from 8 to 512 bytes. It never blocks or changes a packet, reads no chat, and reads no other packet. Each card shows what is read from the packet, what is kept in memory, what is worked out, and what is finally sent.</p>
+<figure><div class="scroll"><svg viewBox="0 0 1040 280" role="img" aria-label="Timeline of one mob kill: action packets before, the defeat message, pool items and gil within three seconds, then the event is queued"><defs><marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><text class="sb" x="10" y="54" text-anchor="start">0x028 action</text><line x1="220" y1="50" x2="1030" y2="50" stroke="var(--line)" stroke-width="1"/><text class="sb" x="10" y="104" text-anchor="start">0x029 defeat (message 6)</text><line x1="220" y1="100" x2="1030" y2="100" stroke="var(--line)" stroke-width="1"/><text class="sb" x="10" y="154" text-anchor="start">0x0D2 pool item</text><line x1="220" y1="150" x2="1030" y2="150" stroke="var(--line)" stroke-width="1"/><text class="sb" x="10" y="204" text-anchor="start">0x029 gil (message 565)</text><line x1="220" y1="200" x2="1030" y2="200" stroke="var(--line)" stroke-width="1"/><circle cx="260" cy="50" r="6" fill="var(--plugin)"/><circle cx="330" cy="50" r="6" fill="var(--plugin)"/><circle cx="400" cy="50" r="6" fill="var(--plugin)"/><text class="lb" x="330" y="32" text-anchor="middle">Thief level and own TH noted per mob</text><circle cx="560" cy="100" r="7" fill="var(--wiki)"/><text class="lb" x="560" y="84" text-anchor="middle">kill opens a pending event</text><circle cx="575" cy="150" r="6" fill="var(--plugin)"/><circle cx="590" cy="150" r="6" fill="var(--plugin)"/><circle cx="610" cy="150" r="6" fill="var(--plugin)"/><text class="lb" x="630" y="142" text-anchor="start">items and kill tick join the event</text><circle cx="630" cy="200" r="6" fill="var(--plugin)"/><text class="lb" x="645" y="192" text-anchor="start">gil joins the event</text><line x1="560" y1="226" x2="560" y2="238" stroke="var(--mute)"/><line x1="860" y1="226" x2="860" y2="238" stroke="var(--mute)"/><path class="ln" d="M560,238 L860,238"/><text class="lb" x="710" y="256" text-anchor="middle">3 second collection window</text><rect class="nd s" x="880" y="214" width="150" height="50" rx="8"/><text class="tt" x="955.0" y="235.5" text-anchor="middle">Event queued</text><text class="sb" x="955.0" y="251.5" text-anchor="middle">signed and sent</text><path class="ln" d="M860,238 L880,238" marker-end="url(#a7)"/><path class="ln dash" d="M560,107 L560,226"/></svg></div><figcaption>One kill, packet by packet. Actions are noted as they happen. The defeat message opens a pending event; pool items and the gil message within three seconds join it, then it is queued.</figcaption></figure><div class="pks"><div class="pk"><div class="pkh"><b>0x00A</b><span>Zone change</span></div><dl><dt>Reads</dt><dd>The zone id (offset 0x30) and the game server&#x27;s unix time (offset 0x38).</dd><dt>Keeps in memory</dt><dd>The current zone, and a clock anchor: the server time plus half a second, paired with the PC&#x27;s monotonic clock. When the zone changes, everything held for the old zone is dropped: entities, pending kills, defeat de-duplication, the chest resend list and the Thief actions.</dd><dt>Evaluates</dt><dd>The time must be a plausible unix time. Kill times are then taken as the anchor plus the time elapsed since, so every reporter agrees whatever their PC clock says.</dd><dt>Sends as</dt><dd>zone_id, event_ms, time_anchored and event_minute.</dd></dl></div><div class="pk"><div class="pkh"><b>0x00E</b><span>Entity update</span></div><dl><dt>Reads</dt><dd>Unique id (0x04), entity index (0x08), position (0x0C, 0x10, 0x14), the first four model bytes (0x30) and the 16-byte name (0x34).</dd><dt>Keeps in memory</dt><dd>Per entity in this zone: name, model, position and the time it was first seen. Entities with an index of 0x400 or more (players and pets) are never read.</dd><dt>Evaluates</dt><dd>Names starting Treasure_Casket, Treasure_Chest, Treasure_Coffer or Armoury_Crate mark a chest. A chest that moves more than 1.0 units is treated as a new spawn.</dd><dt>Sends as</dt><dd>For a defeated mob, source_name and model. For a chest, the name, the position rounded to 0.1 and the spawn minute. A mob&#x27;s position is never sent.</dd></dl></div><div class="pk"><div class="pkh"><b>0x028</b><span>Action</span></div><dl><dt>Reads</dt><dd>The actor id (0x05), the number of targets (0x09, 10 bits) and, from bit 150, each target id and its action count. What the action was and how much it did is skipped.</dd><dt>Keeps in memory</dt><dd>For each targeted mob: the highest Thief level among party and alliance members that acted on it, counting a sub-job Thief at the sub-job level. When the actor is the player, its own Treasure Hunter trait and worn gear are read at that moment. Cleared when the mob dies, on a zone change, or after 15 minutes.</dd><dt>Evaluates</dt><dd>The actor is looked up in the roster, which holds job and level only. Only mobs count. An action by someone with no Thief level and no own TH is dropped.</dd><dt>Sends as</dt><dd>th_acted_level, th_acted_known, th_self_trait and th_self_gear.</dd></dl></div><div class="pk"><div class="pkh"><b>0x029</b><span>Battle message</span></div><dl><dt>Reads</dt><dd>The message id (0x18), the target id (0x08) and the value (0x0C).</dd><dt>Keeps in memory</dt><dd>Message 6 (defeated) opens a pending event for that target, de-duplicated so one kill is not recorded twice. Message 565 (gil obtained) within 3 seconds adds the gil, if it is between 1 and 1,000,000 and none is recorded yet. The pending event waits 3 seconds, then is queued.</dd><dt>Evaluates</dt><dd>At the defeat the plugin also counts the alliance members eligible for the gil split, builds the anonymous party tags and the alliance flag, and attaches the Thief facts it noted.</dd><dt>Sends as</dt><dd>defeated_by_party, source_id, gil, gil_party, gil_party_zone, party tags, party_in_alliance, client_event_id. Every other message id is ignored.</dd></dl></div><div class="pk"><div class="pkh"><b>0x0D2</b><span>Treasure pool item</span></div><dl><dt>Reads</dt><dd>The source mob id (0x08), the item id (0x10), the quantity (0x04) and the server tick (0x18).</dd><dt>Keeps in memory</dt><dd>Nothing beyond the pending event it joins.</dd><dt>Evaluates</dt><dd>Attached to the pending kill with the same source id, within 3 seconds. A quantity of 100 or more is read as 1. The lowest tick over the kill&#x27;s items becomes the kill tick. Pool-clear packets (source 0 or item 0) are ignored.</dd><dt>Sends as</dt><dd>drops and kill_tick.</dd></dl></div><div class="pk"><div class="pkh"><b>0x034</b><span>Chest interaction</span></div><dl><dt>Reads</dt><dd>The chest id (0x04), the event number (0x2C) and four item ids (0x08, four bytes each).</dd><dt>Keeps in memory</dt><dd>Which chest presentations were already sent for this spawn, for 300 seconds.</dd><dt>Evaluates</dt><dd>Only chests already seen in packet 0x00E count. The event number minus 1000, modulo 3, gives 0 for an items chest, 1 for a temporary-items chest, and 2 for a locked chest, which is ignored. A list with any value above 0xFFFF is refused, an empty list sends nothing, and a repeat is sent only if it gained an item.</dd><dt>Sends as</dt><dd>drops with their slots, chest_kind, the position, spawn_minute.</dd></dl></div></div><h3 class="sub">Memory reads</h3><div class="pks"><div class="pk"><div class="pkh"><b>Party roster</b></div><dl><dt>Reads</dt><dd>Per slot 0 to 17: active flag, zone, main job and level, sub job and level, server id, target index.</dd><dt>Used for</dt><dd>Job and level feed the Thief lookup and the roster. Zone decides who is &quot;in the zone&quot;. The server id is compared and run through the oblivious PRF to make anonymous tags; it is never stored or sent.</dd></dl></div><div class="pk"><div class="pkh"><b>Entity table</b></div><dl><dt>Reads</dt><dd>Spawn flags, render flags and position of each party member and of the mob.</dd><dt>Used for</dt><dd>Counts the alliance members within 50 yalms of the mob (the render flag shows who the client still updates). Only the counts are sent, never a position.</dd></dl></div><div class="pk"><div class="pkh"><b>Equipment and inventory</b></div><dl><dt>Reads</dt><dd>The 16 equipped slots and the item id in each.</dd><dt>Used for</dt><dd>Item ids are looked up in a Treasure Hunter table to give the gear bonus. Only the two numbers, trait and gear, are sent.</dd></dl></div></div>
+  <h2>What is in the message</h2>
+<figure><div class="scroll"><svg viewBox="0 0 1040 340" role="img" aria-label="Hierarchy of the message: envelope, payload, events, and the six groups of fields in a SourceEvent"><defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><rect class="nd p" x="10" y="108" width="130" height="56" rx="7"/><text class="tt" x="20" y="125">Envelope</text><text class="sb" x="20" y="140">POST /v1/ingest</text><rect class="nd p" x="190" y="40" width="150" height="40" rx="7"/><text class="tt" x="200" y="57">protocol_version</text><text class="sb" x="200" y="72">must be 1</text><path class="ln" d="M140,136 L165,136 L165,60 L190,60" marker-end="url(#a2)"/><rect class="nd p" x="190" y="92" width="150" height="40" rx="7"/><text class="tt" x="200" y="109">public_key</text><text class="sb" x="200" y="124">install identity</text><path class="ln" d="M140,136 L165,136 L165,112 L190,112" marker-end="url(#a2)"/><rect class="nd p" x="190" y="144" width="150" height="40" rx="7"/><text class="tt" x="200" y="161">signature</text><text class="sb" x="200" y="176">over the payload bytes</text><path class="ln" d="M140,136 L165,136 L165,164 L190,164" marker-end="url(#a2)"/><rect class="nd p" x="190" y="196" width="150" height="40" rx="7"/><text class="tt" x="200" y="213">payload</text><text class="sb" x="200" y="228">signed as-is</text><path class="ln" d="M140,136 L165,136 L165,216 L190,216" marker-end="url(#a2)"/><rect class="nd p" x="390" y="150" width="150" height="40" rx="7"/><text class="tt" x="400" y="167">nonce</text><text class="sb" x="400" y="182">replay guard</text><path class="ln" d="M340,216 L365,216 L365,170 L390,170" marker-end="url(#a2)"/><rect class="nd p" x="390" y="202" width="150" height="40" rx="7"/><text class="tt" x="400" y="219">timestamp</text><text class="sb" x="400" y="234">freshness</text><path class="ln" d="M340,216 L365,216 L365,222 L390,222" marker-end="url(#a2)"/><rect class="nd p" x="390" y="254" width="150" height="40" rx="7"/><text class="tt" x="400" y="271">events[]</text><text class="sb" x="400" y="286">one per kill or chest</text><path class="ln" d="M340,216 L365,216 L365,274 L390,274" marker-end="url(#a2)"/><rect class="nd p" x="590" y="157" width="130" height="40" rx="7"/><text class="tt" x="600" y="174">SourceEvent</text><text class="sb" x="600" y="189">28 fields</text><path class="ln" d="M540,274 L565,274 L565,177 L590,177" marker-end="url(#a2)"/><rect class="nd p" x="760" y="20" width="270" height="44" rx="7"/><text class="tt" x="770" y="37">The source</text><text class="sb" x="770" y="52">6 fields: zone, id, name, model, type, defeated</text><path class="ln" d="M720,177 L740,177 L740,42 L760,42" marker-end="url(#a2)"/><rect class="nd p" x="760" y="74" width="270" height="44" rx="7"/><text class="tt" x="770" y="91">Which kill it was</text><text class="sb" x="770" y="106">5 fields: minute, ms, anchored, tick, event id</text><path class="ln" d="M720,177 L740,177 L740,96 L760,96" marker-end="url(#a2)"/><rect class="nd p" x="760" y="128" width="270" height="44" rx="7"/><text class="tt" x="770" y="145">What came out</text><text class="sb" x="770" y="160">4 fields: drops, gil, party and zone counts</text><path class="ln" d="M720,177 L740,177 L740,150 L760,150" marker-end="url(#a2)"/><rect class="nd p" x="760" y="182" width="270" height="44" rx="7"/><text class="tt" x="770" y="199">Chests only</text><text class="sb" x="770" y="214">5 fields: position x y z, kind, spawn minute</text><path class="ln" d="M720,177 L740,177 L740,204 L760,204" marker-end="url(#a2)"/><rect class="nd p" x="760" y="236" width="270" height="44" rx="7"/><text class="tt" x="770" y="253">Treasure Hunter</text><text class="sb" x="770" y="268">4 fields: acted level, known, own trait, own gear</text><path class="ln" d="M720,177 L740,177 L740,258 L760,258" marker-end="url(#a2)"/><rect class="nd p" x="760" y="290" width="270" height="44" rx="7"/><text class="tt" x="770" y="307">Who was there</text><text class="sb" x="770" y="322">4 fields: roster, own tag, party tags, alliance flag</text><path class="ln" d="M720,177 L740,177 L740,312 L760,312" marker-end="url(#a2)"/></svg></div><figcaption>The message is an envelope around a signed payload. The payload carries the events, and each event is one SourceEvent of 28 fields in six groups, listed below.</figcaption></figure>
+  <h2>How many reports become one kill</h2>
+<figure><div class="scroll"><svg viewBox="0 0 1040 300" role="img" aria-label="Three reports of one kill merge into one row of source_events"><defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><rect class="nd p" x="10" y="20" width="260" height="78" rx="8"/><text class="tt" x="140.0" y="40.5" text-anchor="middle">Reporter A (trusted)</text><text class="sb" x="140.0" y="56.5" text-anchor="middle">drops: Nugget, Cap</text><text class="sb" x="140.0" y="71.5" text-anchor="middle">gil 55 · TH 2</text><text class="sb" x="140.0" y="86.5" text-anchor="middle">party 1</text><path class="ln" d="M270,59 L330,59 L330,166"/><rect class="nd p" x="10" y="116" width="260" height="78" rx="8"/><text class="tt" x="140.0" y="136.5" text-anchor="middle">Reporter B</text><text class="sb" x="140.0" y="152.5" text-anchor="middle">drops: Nugget</text><text class="sb" x="140.0" y="167.5" text-anchor="middle">gil 55 · TH 3</text><text class="sb" x="140.0" y="182.5" text-anchor="middle">party 1 (same party key as A)</text><path class="ln" d="M270,155 L330,155 L330,166"/><rect class="nd p" x="10" y="212" width="260" height="78" rx="8"/><text class="tt" x="140.0" y="232.5" text-anchor="middle">Reporter C</text><text class="sb" x="140.0" y="248.5" text-anchor="middle">saw no items</text><text class="sb" x="140.0" y="263.5" text-anchor="middle">gil 55 · TH 0</text><text class="sb" x="140.0" y="278.5" text-anchor="middle">party 2, same alliance</text><path class="ln" d="M270,251 L330,251 L330,166"/><path class="ln" d="M330,166 L610,166" marker-end="url(#a5)"/><text class="lb" x="470" y="156" text-anchor="middle">same zone, source and kill tick</text><rect class="nd s" x="610" y="20" width="420" height="262" rx="10"/><text class="tt mono" x="630" y="46">source_events (one row)</text><text class="tt" x="630" y="80">items</text><text class="tt mono" x="730" y="80">Nugget, Cap</text><text class="sb" x="830" y="80">union; larger quantity wins</text><text class="tt" x="630" y="114">TH tier</text><text class="tt mono" x="730" y="114">3</text><text class="sb" x="830" y="114">highest of the reports that count</text><text class="tt" x="630" y="148">gil dropped</text><text class="tt mono" x="730" y="148">55</text><text class="sb" x="830" y="148">one share, same for all reporters</text><text class="tt" x="630" y="182">kill tick</text><text class="tt mono" x="730" y="182">kept</text><text class="sb" x="830" y="182">first report that had one</text><text class="tt" x="630" y="216">reports</text><text class="tt mono" x="730" y="216">3</text><text class="sb" x="830" y="216">all kept in event_reports</text><text class="tt" x="630" y="250">party facts</text><text class="tt mono" x="730" y="250">2 parties</text><text class="sb" x="830" y="250">multi_party label; nothing excluded</text></svg></div><figcaption>How several reports become one kill. A and B are in one party and share a party key; C is in another party of the same alliance, in the same zone. The numbers are an illustration, not real data.</figcaption></figure><figure><div class="scroll"><svg viewBox="0 0 1040 330" role="img" aria-label="Decision flow that decides which reports speak for a kill and whether the kill counts"><defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><rect class="nd s" x="10" y="130" width="120" height="60" rx="8"/><text class="tt" x="70.0" y="156.5" text-anchor="middle">Reports of</text><text class="sb" x="70.0" y="172.5" text-anchor="middle">one kill</text><rect class="nd s" x="170" y="130" width="130" height="60" rx="8"/><text class="tt" x="235.0" y="156.5" text-anchor="middle">Remove revoked</text><text class="sb" x="235.0" y="172.5" text-anchor="middle">reporters</text><path class="ln" d="M130,160 L170,160" marker-end="url(#a4)"/><polygon class="nd s" points="390,110 460,160 390,210 320,160"/><text class="tt" x="390" y="158" text-anchor="middle">Trusted</text><text class="tt" x="390" y="173" text-anchor="middle">reporter?</text><path class="ln" d="M300,160 L320,160" marker-end="url(#a4)"/><rect class="nd s" x="500" y="30" width="170" height="60" rx="8"/><text class="tt" x="585.0" y="56.5" text-anchor="middle">Only trusted reports</text><text class="sb" x="585.0" y="72.5" text-anchor="middle">speak for the kill</text><path class="ln" d="M390,110 L390,60 L500,60" marker-end="url(#a4)"/><text class="lb" x="398" y="90" text-anchor="start">yes</text><polygon class="nd s" points="390,222 460,270 390,318 320,270"/><text class="tt" x="390" y="268" text-anchor="middle">7 or more</text><text class="tt" x="390" y="283" text-anchor="middle">reporters?</text><path class="ln" d="M390,210 L390,222" marker-end="url(#a4)"/><text class="lb" x="398" y="218" text-anchor="start">no</text><rect class="nd s" x="500" y="240" width="170" height="60" rx="8"/><text class="tt" x="585.0" y="266.5" text-anchor="middle">All speak; keep only</text><text class="sb" x="585.0" y="282.5" text-anchor="middle">items 7 reported</text><path class="ln" d="M460,270 L500,270" marker-end="url(#a4)"/><text class="lb" x="480" y="262" text-anchor="middle">yes</text><rect class="nd s" x="130" y="240" width="150" height="60" rx="8"/><text class="tt" x="205.0" y="266.5" text-anchor="middle">Not counted yet</text><text class="sb" x="205.0" y="282.5" text-anchor="middle">kept, waiting</text><path class="ln" d="M320,270 L280,270" marker-end="url(#a4)"/><text class="lb" x="300" y="262" text-anchor="middle">no</text><rect class="nd s" x="700" y="130" width="140" height="60" rx="8"/><text class="tt" x="770.0" y="156.5" text-anchor="middle">Rebuild drops</text><text class="sb" x="770.0" y="172.5" text-anchor="middle">and TH tier</text><path class="ln" d="M670,60 L770,60 L770,130" marker-end="url(#a4)"/><path class="ln" d="M670,270 L770,270 L770,190" marker-end="url(#a4)"/><polygon class="nd s" points="935,112 997,160 935,208 873,160"/><text class="tt" x="935" y="158" text-anchor="middle">Held by</text><text class="tt" x="935" y="173" text-anchor="middle">operator?</text><path class="ln" d="M840,160 L873,160" marker-end="url(#a4)"/><rect class="nd w" x="880" y="20" width="140" height="50" rx="8"/><text class="tt" x="950.0" y="41.5" text-anchor="middle">Counts</text><text class="sb" x="950.0" y="57.5" text-anchor="middle">in every table</text><path class="ln" d="M935,112 L935,70" marker-end="url(#a4)"/><text class="lb" x="943" y="95" text-anchor="start">no</text><rect class="nd w" x="880" y="250" width="140" height="50" rx="8"/><text class="tt" x="950.0" y="271.5" text-anchor="middle">Excluded</text><text class="sb" x="950.0" y="287.5" text-anchor="middle">kept, not counted</text><path class="ln" d="M935,208 L935,250" marker-end="url(#a4)"/><text class="lb" x="943" y="232" text-anchor="start">yes</text></svg></div><figcaption>How the server decides who speaks for a kill. A trusted reporter shapes a kill alone; without one, seven different reporters must agree, and only the items they reported are kept. The TH tier is the highest among the reports that speak.</figcaption></figure>
+  <h2>Where it is kept</h2>
+<figure><div class="scroll"><svg viewBox="0 0 1040 370" role="img" aria-label="How the tables relate: reporters, reports, kills and drops, read through exclusion views into the aggregate views the wiki uses"><defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><rect class="nd s" x="20" y="20" width="240" height="74" rx="8"/><text class="tt mono" x="140.0" y="46.0" text-anchor="middle">reporters</text><text class="sb" x="140.0" y="62.0" text-anchor="middle">one row per install</text><text class="sb" x="140.0" y="77.0" text-anchor="middle">key hash, trusted, revoked</text><rect class="nd s" x="380" y="20" width="240" height="74" rx="8"/><text class="tt mono" x="500.0" y="46.0" text-anchor="middle">event_reports</text><text class="sb" x="500.0" y="62.0" text-anchor="middle">one row per reporter per kill</text><text class="sb" x="500.0" y="77.0" text-anchor="middle">gil, party facts, own TH claim</text><rect class="nd s" x="740" y="20" width="240" height="74" rx="8"/><text class="tt mono" x="860.0" y="46.0" text-anchor="middle">source_events</text><text class="sb" x="860.0" y="62.0" text-anchor="middle">one row per kill or chest</text><text class="sb" x="860.0" y="77.0" text-anchor="middle">identity, TH tier, labels</text><path class="ln" d="M260,57 L380,57" marker-end="url(#a3)"/><text class="lb" x="320" y="50" text-anchor="middle">1 : n</text><path class="ln" d="M740,57 L620,57" marker-end="url(#a3)"/><text class="lb" x="680" y="50" text-anchor="middle">1 : n</text><rect class="nd s" x="20" y="150" width="240" height="62" rx="8"/><text class="tt mono" x="140.0" y="170.0" text-anchor="middle">nonces</text><text class="sb" x="140.0" y="186.0" text-anchor="middle">replay guard</text><text class="sb" x="140.0" y="201.0" text-anchor="middle">reporter, nonce</text><rect class="nd s" x="380" y="150" width="180" height="62" rx="8"/><text class="tt mono" x="470.0" y="170.0" text-anchor="middle">event_report_drops</text><text class="sb" x="470.0" y="186.0" text-anchor="middle">each reporter&#x27;s own list</text><text class="sb" x="470.0" y="201.0" text-anchor="middle">kept to subtract exactly</text><rect class="nd s" x="740" y="150" width="180" height="62" rx="8"/><text class="tt mono" x="830.0" y="170.0" text-anchor="middle">event_drops</text><text class="sb" x="830.0" y="186.0" text-anchor="middle">merged item list</text><text class="sb" x="830.0" y="201.0" text-anchor="middle">item, slot, quantity</text><path class="ln" d="M140,94 L140,150" marker-end="url(#a3)"/><text class="lb" x="150" y="126" text-anchor="start">1 : n</text><path class="ln" d="M470,94 L470,150" marker-end="url(#a3)"/><text class="lb" x="480" y="126" text-anchor="start">1 : n</text><path class="ln" d="M830,94 L830,150" marker-end="url(#a3)"/><text class="lb" x="840" y="126" text-anchor="start">1 : n</text><path class="ln" d="M600,94 L600,250"/><path class="ln" d="M960,94 L960,250"/><path class="ln" d="M830,212 L830,250"/><path class="ln" d="M580,250 L960,250"/><path class="ln" d="M580,250 L580,290" marker-end="url(#a3)"/><text class="lb" x="715" y="243" text-anchor="middle">read only through the exclusion views</text><rect class="nd s" x="460" y="290" width="240" height="60" rx="8"/><text class="tt mono" x="580.0" y="316.5" text-anchor="middle">v_ev, v_rep</text><text class="sb" x="580.0" y="332.5" text-anchor="middle">revoked, held, unusable removed</text><rect class="nd s" x="740" y="290" width="160" height="60" rx="8"/><text class="tt mono" x="820.0" y="316.5" text-anchor="middle">v_stat_*</text><text class="sb" x="820.0" y="332.5" text-anchor="middle">counts, no reporter rows</text><rect class="nd w" x="940" y="290" width="90" height="60" rx="8"/><text class="tt" x="985.0" y="324.0" text-anchor="middle">Wiki</text><path class="ln" d="M700,320 L740,320" marker-end="url(#a3)"/><path class="ln" d="M900,320 L940,320" marker-end="url(#a3)"/><text class="sb" x="20" y="312" text-anchor="start">Every statistic reads through these views,</text><text class="sb" x="20" y="328" text-anchor="start">so revoking a reporter or holding a kill</text><text class="sb" x="20" y="344" text-anchor="start">removes it from every table at once.</text></svg></div><figcaption>Where the data is kept. A kill has many reports and each report belongs to one install. The wiki never reads the tables directly, only the views at the bottom.</figcaption></figure>
+  <h2>Every variable</h2>
+  <div id="fields"></div>
+
+  <h2>Where it shows on the wiki</h2>
+  <div class="wiki" id="wiki"></div>
+  <p class="note">Raw counts and percentages are always shown together, with a small-sample warning instead of hiding anything. The wiki reads only the aggregate v_stat views, which carry no reporter rows.</p>
+</div>
+
+<script>
+/* ---------- data ---------- */
+const GROUPS = [
+  {id:'src',  t:'The source'},
+  {id:'when', t:'Which kill it was'},
+  {id:'out',  t:'What came out'},
+  {id:'chest',t:'Chests only'},
+  {id:'th',   t:'Treasure Hunter'},
+  {id:'who',  t:'Who was there'},
+  {id:'env',  t:'Envelope'}
+];
+
+/* cols = ids of storage chips the field lands in */
+const FIELDS = [
+ {id:'zone_id',tag:1,type:'uint32',g:'src',cols:['se_zone'],
+  desc:'The zone the kill happened in.',
+  why:'Drop lists differ by zone, so every pool on the wiki is a zone plus a mob.',
+  srv:'Must be 1 to 511. Part of the key used to find the same kill again.'},
+ {id:'source_id',tag:2,type:'uint32',g:'src',cols:['se_source'],
+  desc:"The mob's server-side unique ID. It identifies a monster, never a player.",
+  why:'Separates mobs of one name. The wiki adds up every spawn of a mob within a zone.',
+  srv:'Must be non-zero. Part of the kill match key.'},
+ {id:'source_name',tag:3,type:'string',g:'src',cols:['se_name'],
+  desc:'The name the game client shows for the mob.',
+  why:'Lets the wiki flag tracked mobs that are missing from the reference database.',
+  srv:'Stored as reported, up to 40 characters.'},
+ {id:'model',tag:4,type:'uint32',g:'src',cols:['se_model'],
+  desc:"The mob's model number.",
+  why:'A cross-check against the reference database, to catch mislabelled sources.',
+  srv:'Stored as reported.'},
+ {id:'source_type',tag:5,type:'enum',g:'src',cols:['se_type'],
+  desc:'Mob, chest, coffer, armoury crate or other.',
+  why:'Mobs and chests are matched and counted differently.',
+  srv:'An unknown type is refused. Part of the match key.'},
+ {id:'defeated_by_party',tag:10,type:'bool',g:'src',cols:['ns_defeat'],
+  desc:'Set from the in-game defeat message.',
+  why:'Only kills the party made produce drops that count.',
+  srv:'A mob event without it is refused. Not stored.'},
+
+ {id:'event_minute',tag:6,type:'uint32',g:'when',cols:['se_minute'],
+  desc:'The kill time as a coarse unix minute.',
+  why:'A cheap time bucket for finding the same kill again.',
+  srv:'Replaced by event_ms / 60000 when the server clock is available. Defines the match window.'},
+ {id:'event_ms',tag:18,type:'uint64',g:'when',cols:['se_ms'],
+  desc:"The kill time on the game server's clock, in milliseconds.",
+  why:'Reporters with wrong PC clocks still agree on when the kill happened.',
+  srv:'Checked against the real time. The first value a kill gathers is kept. Two kills closer than a respawn can be are treated as one.'},
+ {id:'time_anchored',tag:19,type:'bool',g:'when',cols:['ns_anchor'],
+  desc:'True when event_ms rests on a zone-in packet from this session.',
+  why:'Without that anchor the time cannot be trusted across reporters.',
+  srv:'Decides whether event_ms is used and range-checked. Not stored.'},
+ {id:'kill_tick',tag:17,type:'uint32',g:'when',cols:['se_tick'],
+  desc:"The server tick from the treasure-pool packet, lowest over the kill's items. 0 when there were no items.",
+  why:'Identical on every client that saw the kill, so it identifies the kill exactly.',
+  srv:'An exact match when present. Stored on the kill.'},
+ {id:'client_event_id',tag:20,type:'uint64',g:'when',cols:['er_cid'],
+  desc:'A random number per reporter and event.',
+  why:'A resend reuses it, so a retry is not counted twice. It never links players.',
+  srv:'Same reporter and same id is a duplicate and is ignored. Same reporter with a different id is a different kill.'},
+
+ {id:'drops',tag:7,type:'repeated Drop',g:'out',cols:['ed_drop','erd_drop'],
+  desc:'The items that went to the pool, or the items in each chest slot: item_id, quantity, slot.',
+  why:'The purpose of the project.',
+  srv:'Merged into one list per kill: for a mob, the union with the larger quantity; for a chest, per slot. Each reporter\'s own list is also kept, so one reporter can be removed exactly.'},
+ {id:'gil',tag:9,type:'uint32',g:'out',cols:['er_gil'],
+  desc:"This reporter's own share of the gil. 0 when none was seen.",
+  why:'Shows how the server splits gil, from observed values rather than a guess.',
+  srv:'Stored per report. One share per kill is used in the statistics: the earliest report that has gil.'},
+ {id:'gil_party',tag:16,type:'uint32',g:'out',cols:['er_size'],
+  desc:'Alliance members eligible for the split: same zone, dead ones included, within 50 yalms of the mob.',
+  why:'The lower bound of the split size. Total gil is estimated as share times this.',
+  srv:'Stored as party_size. Older plugins fall back to the length of the party roster.'},
+ {id:'gil_party_zone',tag:23,type:'uint32',g:'out',cols:['er_zone'],
+  desc:'Alliance members in the same zone at any distance.',
+  why:'The upper bound of the split size. The game splits up to about 100 yalms; the client sees only about 50.',
+  srv:'Stored as party_zone. The wiki shows the pair as "in view - in zone".'},
+
+ {id:'pos_x · pos_y · pos_z',tag:'11-13',type:'sint32',g:'chest',cols:['se_pos'],
+  desc:"A chest's position, rounded to 0.1 units. Mobs and players send none.",
+  why:'Two chests in one zone are told apart by where they stand.',
+  srv:'Chest events only: a chest is the same chest if the position is within a small tolerance.'},
+ {id:'chest_kind',tag:15,type:'enum',g:'chest',cols:['se_chest'],
+  desc:'Items chest or temporary-items chest, from the event number.',
+  why:'They are different loot tables and are never mixed.',
+  srv:'Required for chests. Part of the key the statistics group by.'},
+ {id:'spawn_minute',tag:14,type:'uint32',g:'chest',cols:['ns_spawn'],
+  desc:'The minute the chest spawned.',
+  why:'Part of the chest identity in the protocol.',
+  srv:'Carried in the message. The server does not use it today.'},
+
+ {id:'th_acted_level',tag:21,type:'uint32',g:'th',cols:['er_th','se_th'],
+  desc:'The highest Thief level among party and alliance members seen acting on the mob. 0 means none.',
+  why:'Treasure Hunter attaches to a mob when a Thief acts on it, and the Thief level gives the trait tier.',
+  srv:'Converted to a TH tier. The kill keeps the highest tier among reports that count.'},
+ {id:'th_acted_known',tag:22,type:'bool',g:'th',cols:['er_th','se_th'],
+  desc:'True when the plugin was watching the action packets for this mob.',
+  why:'Separates "no Thief acted" from "we were not watching".',
+  srv:'When false, the server falls back to the best Thief level in the party roster.'},
+ {id:'th_self_trait',tag:24,type:'uint32',g:'th',cols:['er_thself','er_th','se_th'],
+  desc:"Treasure Hunter from the reporter's own job trait when its own action hit the mob.",
+  why:'The one TH value the plugin can read exactly: its own.',
+  srv:"Capped by what the reporter's own job and level allow. A reduced claim is flagged."},
+ {id:'th_self_gear',tag:25,type:'uint32',g:'th',cols:['er_thself','er_th','se_th'],
+  desc:'Treasure Hunter from the gear worn at the moment of the reporter\'s own action.',
+  why:'Any job can add TH with one piece of gear, and gear can be swapped at any moment.',
+  srv:'Tier is the highest of the Thief-level tier and the own claim, capped at 4. Claims nothing corroborates are listed for the operator.'},
+
+ {id:'party',tag:8,type:'repeated PartyMember',g:'who',cols:['ns_party'],
+  desc:'The job and level of each party member. No names, no IDs.',
+  why:'A fallback for older plugins, and a way to sanity-check the reporter\'s own claim.',
+  srv:'Read during ingest and then discarded.'},
+ {id:'party_self_tag',tag:26,type:'bytes',g:'who',cols:['er_pkey'],
+  desc:"An anonymous 8-byte tag for this reporter, made through the oblivious PRF. Never an ID.",
+  why:'Lets the server tell which reports came from one party without learning who anyone is.',
+  srv:'Must appear among the party tags. Stored as party_self.'},
+ {id:'party_tags',tag:27,type:'repeated bytes',g:'who',cols:['er_pkey','se_multi'],
+  desc:"The sorted tags of the party members in the reporter's zone, the reporter included.",
+  why:'Members who were not physically there are left out, so each group is judged on its own.',
+  srv:'Hashed into one 16-byte party_key, the same for every member of a party. Different keys on one kill set the multi-party label.'},
+ {id:'party_in_alliance',tag:28,type:'bool',g:'who',cols:['er_alliance'],
+  desc:"True when members of another alliance party were in the reporter's zone at the kill.",
+  why:'Tells a lone party from one party of an alliance, without storing anyone from the other parties.',
+  srv:'Stored as party_alliance, empty when the report has no party tags.'},
+
+ {id:'public_key',tag:'env 2',type:'bytes',g:'env',cols:['rp_key','er_reporter'],
+  desc:'The Ed25519 public key of this install. It is derived through the oblivious PRF, so the server cannot link it to a character.',
+  why:'Identifies an install, so a bad one can be revoked and a good one trusted.',
+  srv:'Stored as a peppered hash. Reports carry the internal reporter number, which the wiki never sees.'},
+ {id:'signature',tag:'env 3',type:'bytes',g:'env',cols:['ns_gate'],
+  desc:'An Ed25519 signature over the payload bytes.',
+  why:'Proves the batch came from the enrolled install and was not altered.',
+  srv:'Verified before anything else is read. Not stored.'},
+ {id:'nonce',tag:'pay 1',type:'bytes',g:'env',cols:['nn_nonce'],
+  desc:'16 random bytes for each batch.',
+  why:'Stops a captured batch from being sent again.',
+  srv:'Stored per reporter. A repeated nonce is refused.'},
+ {id:'timestamp',tag:'pay 2',type:'uint64',g:'env',cols:['ns_gate'],
+  desc:'Unix seconds when the batch was built.',
+  why:'Keeps stale or wildly clocked batches out.',
+  srv:'Must be within the allowed clock skew. Not stored.'}
+];
+
+const TABLES = [
+ {id:'reporters',h:'reporters',p:'One row per install',chips:[
+   {id:'rp_key',l:'key_hash · trusted · revoked',s:'Who is allowed in and whose reports count alone. Never published.'}]},
+ {id:'nonces',h:'nonces',p:'Replay guard',chips:[
+   {id:'nn_nonce',l:'reporter_id · nonce',s:'A nonce can be used once.'}]},
+ {id:'source_events',h:'source_events',p:'One row per kill or chest, merged from every report',chips:[
+   {id:'se_zone',l:'zone_id',s:'Which zone the kill belongs to.'},
+   {id:'se_source',l:'source_id',s:'Which mob the kill belongs to.'},
+   {id:'se_type',l:'source_type',s:'Mob or chest kind of source.'},
+   {id:'se_name',l:'source_name',s:'The name as the client showed it.'},
+   {id:'se_model',l:'model',s:'The model number as reported.'},
+   {id:'se_minute',l:'event_minute',s:'Time bucket used to find the same kill.'},
+   {id:'se_ms',l:'event_ms',s:'Server-clock time, first one kept.'},
+   {id:'se_tick',l:'kill_tick',s:'Exact identity for kills with items.'},
+   {id:'se_pos',l:'pos_x · pos_y · pos_z',s:'Chest position only.'},
+   {id:'se_chest',l:'chest_kind',s:'Which chest loot table.'},
+   {id:'se_th',l:'th_bucket',s:'The kill\'s Treasure Hunter tier, 0 to 4: the highest tier among the reports that count.'},
+   {id:'se_multi',l:'multi_party',s:'Set when reports of one kill carry different party keys. A label for the operator; nothing is excluded by it.'}]},
+ {id:'event_drops',h:'event_drops',p:"The kill's canonical item list",chips:[
+   {id:'ed_drop',l:'item_id · slot · quantity',s:'Merged across every report that counts.'}]},
+ {id:'event_report_drops',h:'event_report_drops',p:'What each reporter said',chips:[
+   {id:'erd_drop',l:'reporter_id · item_id · slot · quantity',s:'Kept so one reporter\'s items can be taken out exactly if they are revoked.'}]},
+ {id:'event_reports',h:'event_reports',p:'One row per reporter per kill',chips:[
+   {id:'er_reporter',l:'reporter_id',s:'Internal number only.'},
+   {id:'er_cid',l:'client_event_id',s:'Recognises a resend.'},
+   {id:'er_gil',l:'gil',s:"This reporter's gil share."},
+   {id:'er_size',l:'party_size',s:'Lower bound of the split.'},
+   {id:'er_zone',l:'party_zone',s:'Upper bound of the split.'},
+   {id:'er_th',l:'th_bucket',s:"This report's TH tier. The kill takes the highest among usable reports."},
+   {id:'er_thself',l:'th_self_trait · th_self_gear · th_flags',s:'The own claim after the plausibility check, and why it was reduced.'},
+   {id:'er_pkey',l:'party_key · party_self · party_n',s:'Which party the reporter was in, as hashed anonymous tags, and its size.'},
+   {id:'er_alliance',l:'party_alliance',s:'Whether another alliance party was in the zone.'}]},
+ {id:'discard',h:'Read, then discarded',p:'Used during ingest, never stored',discard:true,chips:[
+   {id:'ns_gate',l:'signature · timestamp',s:'Checked at the door.'},
+   {id:'ns_defeat',l:'defeated_by_party',s:'Validation only.'},
+   {id:'ns_anchor',l:'time_anchored',s:'Decides whether event_ms is trusted.'},
+   {id:'ns_spawn',l:'spawn_minute',s:'Not used by the server today.'},
+   {id:'ns_party',l:'party[] job and level',s:'Fallback and sanity check.'}]}
+];
+
+/* wiki outputs and the columns that feed them */
+const OUTS = [
+ {id:'W_all',t:'Every table',s:'Which zone, mob and chest kind a row belongs to.',feeds:['se_zone','se_source','se_chest']},
+ {id:'W_rate',t:'Mob page: drop rate per item',s:'Raw count, percentage and a 95% range, per Treasure Hunter tier.',feeds:['ed_drop','se_th']},
+ {id:'W_counts',t:'Mob page: kills and reporters',s:'"N kills from M reporters", and the kills in each tier column header.',feeds:['er_reporter','se_th']},
+ {id:'W_period',t:'Mob page: observed rate over time',s:'Month by month for the items seen most.',feeds:['ed_drop']},
+ {id:'W_gil',t:'Mob page: gil per kill',s:'Mean, lowest and highest share.',feeds:['er_gil','se_th']},
+ {id:'W_gilstudy',t:'Study: gil by party size',s:'Share against party size seen, and a histogram. Appears at 100 kills.',feeds:['er_gil','er_size','er_zone','se_th']},
+ {id:'W_thstudy',t:'Study: Treasure Hunter effect',s:'Rate with no TH against with TH, as a ratio with a range. Appears at 100 kills.',feeds:['ed_drop','se_th']},
+ {id:'W_special',t:'Special:HxidbMobs and Special:HxidbPools',s:'Every tracked source, flagged when missing from the reference database or when the model differs.',feeds:['se_source','se_name','se_model','se_type']},
+ {id:'W_ops',t:'Operator only, not on the wiki',s:'Status, outliers, TH claim report, multi-party label. Today these are server commands.',feeds:['rp_key','se_multi','er_thself','er_pkey','er_alliance','er_reporter'],nopub:true}
+];
+
+
+const chipById={}; TABLES.forEach(t=>t.chips.forEach(c=>{c.table=t.h; chipById[c.id]=c;}));
+const outsOfChip={}; OUTS.forEach(o=>o.feeds.forEach(c=>(outsOfChip[c]=outsOfChip[c]||[]).push(o)));
+const el=(tag,cls,txt)=>{const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e;};
+const box=document.getElementById('fields');
+GROUPS.forEach(g=>{
+  const fs=FIELDS.filter(f=>f.g===g.id); if(!fs.length) return;
+  const s=el('div','grp'); s.appendChild(el('h3','',g.t));
+  fs.forEach(f=>{
+    const r=el('div','row');
+    const n=el('div','name'); n.appendChild(el('b','',f.id)); n.appendChild(el('span','',(typeof f.tag==='number'?'#':'')+f.tag+' \u00b7 '+f.type));
+    const m=el('div'); m.appendChild(el('h4','','What it is')); m.appendChild(el('p','',f.desc)); m.appendChild(el('h4','','Why it is sent')); m.appendChild(el('p','',f.why));
+    const v=el('div'); v.appendChild(el('h4','','Server')); v.appendChild(el('p','',f.srv));
+    v.appendChild(el('h4','','Kept in'));
+    const kept=el('p'); f.cols.forEach(c=>kept.appendChild(el('span','pill',chipById[c].table+' \u00b7 '+chipById[c].l))); v.appendChild(kept);
+    v.appendChild(el('h4','','Shown on the wiki'));
+    const outs=new Map(); f.cols.forEach(c=>(outsOfChip[c]||[]).forEach(o=>outs.set(o.id,o)));
+    const sh=el('p'); if(outs.size) outs.forEach(o=>sh.appendChild(el('span','pill w',o.t))); else sh.appendChild(el('span','pill n','Not shown. Used to match or validate.'));
+    v.appendChild(sh);
+    r.appendChild(n); r.appendChild(m); r.appendChild(v); s.appendChild(r);
+  });
+  box.appendChild(s);
+});
+OUTS.forEach(o=>{const d=el('div',o.nopub?'x':''); d.appendChild(el('b','',o.t)); d.appendChild(el('span','',o.s)); document.getElementById('wiki').appendChild(d);});
+</script>
